@@ -1,2 +1,2 @@
 # ODE
-ordinary differential equations
+Ordinary differential equations
