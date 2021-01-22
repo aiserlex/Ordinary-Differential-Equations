@@ -74,7 +74,7 @@ def on_move(event):
         if x2 - x0 == 0:  # деление на ноль запрещено
             return
         
-        d2y0 = (y2 - y0 - 2*dy0*(x2 - x0))/(x2 - x0)**2
+        d2y0 = 2 * (y2 - y0 - dy0*(x2 - x0))/(x2 - x0)**2
         
         px = np.linspace(*xlim, 100)
         py = y0 + dy0*(px - x0) + d2y0*(px - x0)**2/2
