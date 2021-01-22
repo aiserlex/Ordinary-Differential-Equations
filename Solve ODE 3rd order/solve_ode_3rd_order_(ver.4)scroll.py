@@ -14,6 +14,7 @@
 
     Use right mouse button click to chose new initial conditions.
     Use middle mouse button click to clear all.
+    Use scroll to change scale.
 """
 
 import matplotlib
