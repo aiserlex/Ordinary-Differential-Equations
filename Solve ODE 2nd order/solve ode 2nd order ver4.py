@@ -1,16 +1,12 @@
 """ This program solves differential equations of 2nd order
     given in form y'' = f(x, y, y').
-
     Define right side of equation f and region XLIM, YLIM by yourself.
-
-    Default is y'' = 3 * y * y'**2 / (1 + y**2)
+    Default is y'' = x - y + 2*y'
     in region [-4, 4] x [-4, 4].
-
     Start the program and define initial conditions
     using mouse clicks and mouse moving:
         1st click for freezing initial condition y(x_0)=y_0,
         2nd click for freezing initial condition y'(x_0)=y_1.
-
     Use right mouse button click to chose new initial conditions.
     Use middle mouse button click to clear all.
 """
@@ -30,21 +26,20 @@ YLIM = (-4, 4)  # integral curves
 
 def f(x, ys):
     """ Right part of equation y'' = f(x, y, y'),
-
         ys: (y, y'),
         x: independent variable.
     """
     y, dy = ys
-    func = 3 * y * dy**2 / (1 + y**2)  # change function in this line
-                                       # x for independent variable
-                                       # y for unknown function
-                                       # dy for y'
+    func = x - y + 2*dy  # change function in this line
+                         # x for independent variable
+                         # y for unknown function
+                         # dy for y'
     return [dy, func]
 
 
 class DataManager:
-    """ This class tracks mouse coordinates and computes dy and d2y
-        which are 1st and 2nd derivatives respectively.
+    """ This class tracks mouse coordinates
+        and computes 1st derivative dy
     """
     def __init__(self):
         self.data = [None for _ in range(2)]
@@ -110,6 +105,10 @@ class Plots:
         self.tang, = ax.plot([], [], 'g', lw=1)
         self.curve, = ax.plot([], [], 'm', lw=2)
         self.added = []
+
+        # test solution for default equation: y(1)=2, y'(1)=1
+        #x = np.linspace(*XLIM, 300)
+        #ax.plot(x, np.exp(x - 1) * (x - 2) + x + 2)
 
     def reset(self):
         self.dot.set_data([], [])
