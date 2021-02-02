@@ -1,3 +1,16 @@
+""" This program solves differential equations of 2nd order
+    given in form y'' = f(x, y, y').
+    Define right side of equation f and region XLIM, YLIM by yourself.
+    Default is y'' = x - y + 2*y'
+    in region [-4, 4] x [-4, 4].
+    Start the program and define initial conditions
+    using mouse clicks and mouse moving:
+        1st click for freezing initial condition y(x_0)=y_0,
+        2nd click for freezing initial condition y'(x_0)=y_1.
+    Use right mouse button click to chose new initial conditions.
+    Use middle mouse button click to clear all.
+"""
+
 import matplotlib
 matplotlib.use('TkAgg')
 
@@ -7,24 +20,130 @@ import numpy as np
 from scipy.integrate import ode
 
 
-XLIM = (-4, 4)
-YLIM = (-4, 4)
+XLIM = (-4, 4)  # region for drawing
+YLIM = (-4, 4)  # integral curves
 
 
 def f(x, ys):
-    """ Правая часть ДУ y''=f(x, y, y'),
-        представленная системой в нормальной форме.
-        ys: (y, dy) - вектор неизвестных,
-        x: независимая переменная.
+    """ Right part of equation y'' = f(x, y, y'),
+        ys: (y, y'),
+        x: independent variable.
     """
-
     y, dy = ys
-    return [dy, np.sin(y)]
-    # return [dy, 50 * (1 - y**2) * dy - y]
+    func = x - y + 2*dy  # change function in this line
+                         # x for independent variable
+                         # y for unknown function
+                         # dy for y'
+    return [dy, func]
+
+
+class DataManager:
+    """ This class tracks mouse coordinates
+        and computes 1st derivative dy
+    """
+    def __init__(self):
+        self.data = [None for _ in range(2)]
+        self.click_num = 0
+
+    def update(self, item):
+        item = self.modify(item)
+        index = self.click_num if self.click_num <=1 else 1
+        self.data[index] = item
+
+    def inc(self):
+        self.click_num += 1
+
+    def modify(self, item):
+        if self.click_num == 0:
+            return item
+        elif self.click_num > 0:
+            x0, y0 = self.data[0]
+            x1, y1 = item
+            if x1 - x0 != 0:
+                dy = (y1 - y0) / (x1 - x0)
+            else:
+                dy = np.nan
+            return (*item, dy)
+
+    def reset(self):
+        self.data = [None for _ in range(2)]
+        self.click_num = 0
+
+    def get_click_num(self):
+        return self.click_num
+
+    def get_data(self, index):
+        return self.data[index]
+
+
+class InitAxes:
+    """ Setup axes and event handlers """
+    def __init__(self):
+        self.fig = plt.figure()
+        self.ax = self.fig.add_subplot(xlim=XLIM, ylim=YLIM)
+        self.tune_axes()
+
+    def tune_axes(self):
+        self.ax.set_aspect('equal')
+        self.ax.grid()
+
+    def set_events(self, callback):
+        self.fig.canvas.mpl_connect('button_press_event', callback)
+        self.fig.canvas.mpl_connect('motion_notify_event', callback)
+
+    def get_ax(self):
+        return self.ax
+
+
+class Plots:
+    """ Make all plots """
+    def __init__(self, ax):
+        self.ax = ax
+        self.ax.hlines(0, *XLIM, lw=0.5)
+        self.ax.vlines(0, *YLIM, lw=0.5)
+        self.dot, = ax.plot([], [], '.g')
+        self.tang, = ax.plot([], [], 'g', lw=1)
+        self.curve, = ax.plot([], [], 'm', lw=2)
+        self.added = []
+
+        # test solution for default equation: y(1)=2, y'(1)=1
+        #x = np.linspace(*XLIM, 300)
+        #ax.plot(x, np.exp(x - 1) * (x - 2) + x + 2)
+
+    def reset(self):
+        self.dot.set_data([], [])
+        self.tang.set_data([], [])
+        self.curve.set_data([], [])
+        self.ax.set_title("")
+
+    def draw_idle(self):
+        self.ax.figure.canvas.draw_idle()
+
+    def draw_dot(self, x0, y0):
+        self.dot.set_data([x0], [y0])
+
+    def draw_tang(self, x0, y0, x1, y1):
+        self.tang.set_data([2*x0 - x1, x1], [2*y0 - y1, y1])
+
+    def draw_curve(self, soln):
+        self.curve.set_data(soln[0], soln[1])
+
+    def add_new(self, soln):
+        new, = self.ax.plot(soln[0], soln[1], 'r', lw=2)
+        self.added.append(new)
+
+    def set_title(self, title):
+        self.ax.set_title(title)
+
+    def clear(self):
+        for item in self.added:
+            item.set_data([], [])
+        self.added.clear()
+
 
 
 def dsolve(func, y0, dy0, x0):
-    """ Численное решение ДУ с помощью класса ode """
+    """ Numerical solution with "ode" class """
 
     de = ode(func)
     de.set_integrator('dop853')
@@ -33,14 +152,14 @@ def dsolve(func, y0, dy0, x0):
     dt = 0.05
     soln = [[x0], [y0]]
 
-    # интегрирование "вправо" от начальной точки
+    # integration to the right from start point
     de.set_initial_value([y0, dy0], x0)
     while de.successful() and de.t <= XLIM[1]:
         de.integrate(de.t + dt)
         soln[0].append(de.t)
         soln[1].append(de.y[0])
 
-    # интегрирование "влево" от начальной точки
+    # integration to the left from start point
     de.set_initial_value([y0, dy0], x0)
     while de.successful() and de.t >= XLIM[0]:
         de.integrate(de.t - dt)
@@ -50,84 +169,62 @@ def dsolve(func, y0, dy0, x0):
     return soln
 
 
-def on_move(event, ax, line, tang, dot):
-    """ Обработчик событий мыши """
+def on_move(event, data, plots, ax):
+    """ Event handler (mouse move, mouse click) """
+    xn = event.xdata
+    yn = event.ydata
 
-    global data
-
-    x1 = event.xdata
-    y1 = event.ydata
-
-    if x1 is None or y1 is None:  # мышь за пределами системы координат
-        dot.set_data([], [])
-        line.set_data([], [])
-        tang.set_data([], [])
-        ax.set_title("")
-        ax.figure.canvas.draw_idle()
+    if xn is None or yn is None:  # mouse is out of region XLIM, YLIM
+        plots.reset()
+        plots.draw_idle()
         return
 
-    if len(data) == 0:  # первое начальное условие
-        dot.set_data([x1], [y1])
-        ax.set_title(f"y({x1:.2f})={y1:.2f}")
+    if event.button == 1:
+        data.inc()
+    elif event.button == 2:  # reset all
+        plots.clear()
+        data.reset()
+    elif event.button == 3:  # reset initial conditions
+        data.reset()
 
-        if event.button == 1:
-            data = (x1, y1)
+    data.update((xn, yn))
+    title = ""
 
-    elif len(data) == 2:  # второе начальное условие
-        x0, y0 = data
+    if data.get_click_num() == 0:  # before 1st click
+        x0, y0 = data.get_data(0)
+        plots.reset()
+        plots.draw_dot(x0, y0)
+        title = f"y({xn:.2f})={yn:.2f}"
+    elif data.get_click_num() > 0:  # before 2nd click
+        x0, y0 = data.get_data(0)
+        x1, y1, dy = data.get_data(1)
+        plots.draw_dot(x0, y0)
+        plots.draw_tang(x0, y0, x1, y1)
+        title = f"y({x0:.2f})={y0:.2f},  y'({x0:.2f})={dy:.2f}"
 
-        delta_x = x0 - x1
-        delta_y = y0 - y1
-        dot.set_data([x0], [y0])
-        tang.set_data([x1, x0 + delta_x], [y1, y0 + delta_y])
+        soln = dsolve(func=f, y0=y0, dy0=dy, x0=x0)
+        plots.draw_curve(soln)
 
-        if  delta_x == 0:  # деление на ноль невозможно
-            line.set_data([], [])
-            ax.figure.canvas.draw_idle()
-            return
+        if event.button == 1 and data.get_click_num() > 1:
+            plots.add_new(soln)  # freeze plot
+            print(title)
 
-        dy0 = delta_y / delta_x
-        soln = dsolve(f, y0, dy0, x0)
-
-        line.set_data(soln[0], soln[1])
-
-        ax.set_title(f"y({x0:.2f})={y0:.2f},  y'({x0:.2f})={dy0:.2f}")
-
-        if event.button == 1:
-            ax.plot(soln[0], soln[1], 'r')
-            print(f"y({x0:.2f})={y0:.2f},  y'({x0:.2f})={dy0:.2f}")
-
-        elif event.button == 3:
-            dot.set_data([x1], [y1])
-            tang.set_data([], [])
-            line.set_data([], [])
-            ax.set_title(f"y({x1:.2f})={y1:.2f}")
-            data = ()
-
-    ax.figure.canvas.draw_idle()
+    plots.set_title(title)
+    plots.draw_idle()  # make all drawings in axes
 
 
-def init_axes():
-    fig = plt.figure()
-    ax = fig.add_subplot(xlim=XLIM, ylim=YLIM)
+def main():
+    axes = InitAxes()
+    ax = axes.get_ax()
 
-    ax.set_aspect('equal')
-    ax.grid()
+    data = DataManager()
+    plots = Plots(ax)
 
-    ax.hlines(0, *XLIM, lw=0.5)
-    ax.vlines(0, *YLIM, lw=0.5)
-
-    dot, = ax.plot([], [], '.g')
-    tang, = ax.plot([], [], 'g', lw=2)
-    line, = ax.plot([], [], 'm', lw=2)
-
-    callback = lambda event: on_move(event, ax, line, tang, dot)
-    fig.canvas.mpl_connect('button_press_event', callback)
-    fig.canvas.mpl_connect('motion_notify_event', callback)
+    callback = lambda event: on_move(event, data, plots, ax)
+    axes.set_events(callback)
 
     plt.show()
 
 
 if __name__ == "__main__":
-    data = ()
-    init_axes()
+    main()
