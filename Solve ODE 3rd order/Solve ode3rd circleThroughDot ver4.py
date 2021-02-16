@@ -4,7 +4,7 @@
     Define right side of equation f and region XLIM, YLIM by yourself.
 
     Default is y''' = y'' - y' + y + x
-    in region [-4, 4] x [-4, 4] (equation of a circle).
+    in region [-4, 4] x [-4, 4].
 
     Start the program and define initial conditions
     using mouse clicks and mouse moving:
